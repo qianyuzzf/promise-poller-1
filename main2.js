@@ -50,6 +50,7 @@ const promisePoller = options => {
       }
       promiseFn
         .then(result => {
+          console.log('n:', n)
           if (shouldContinue(null, result)) {
             //shouldContinue(error,result){}
             delay(interval).then(poll)
@@ -86,11 +87,10 @@ let n = 0
 promisePoller({
   fn: () => {
     return new Promise((resolve, reject) => {
-      reject('CANCEL_TOKEN')
       setTimeout(() => {
         n++
         resolve(n)
-      }, 200)
+      }, 600)
     })
   },
   interval: 1000,
@@ -98,7 +98,7 @@ promisePoller({
   timeout: 500,
   retries: 4,
   shouldContinue: (error, promiseFn) => {
-    if (error || n === 8) {
+    if (n === 8) {
       return false
     } else {
       return true
