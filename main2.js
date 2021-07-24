@@ -1,10 +1,14 @@
+const delay = interval => {
+  return new Promise(resolve => {
+    setTimeout(resolve, interval)
+  })
+}
+
 const promisePoller = options => {
   const { fn, interval } = options
   const poll = () => {
-    setTimeout(() => {
-      fn()
-      poll()
-    }, interval)
+    fn()
+    delay(interval).then(poll)
   }
   poll()
 }
