@@ -7,30 +7,44 @@ const delay = interval => {
 const taskTimeout = (promise, timeout) => {
   return new Promise((resolve, reject) => {
     const timeId = setTimeout(() => {
-      reject('超时')
+      reject('TIMEOUT_TOKEN')
     }, timeout)
-    promise.then(result => {
-      window.clearTimeout(timeId)
-      resolve(result)
-    })
+    promise
+      .then(result => {
+        window.clearTimeout(timeId)
+        resolve(result)
+      })
+      .catch(error => {
+        if (error === 'CANCEL_TOKEN') {
+          reject(error)
+        }
+      })
   })
 }
 
 const promisePoller = options => {
   const { fn, interval, masterTimeout, timeout, shouldContinue, retries, retriesRemainCallback } = options
   let timeId
+  let polling = true
   const rejections = []
   let retriesRemain = retries
 
   return new Promise((resolve, reject) => {
     if (masterTimeout) {
       timeId = setTimeout(() => {
-        reject('总超时')
+        reject('MASTERTIMEOUT_TOKEN')
+        polling = false
       }, masterTimeout)
     }
 
     const poll = () => {
-      let promiseFn = Promise.resolve(fn())
+      const xxx = fn()
+      if (!xxx) {
+        reject(rejections)
+        polling = false
+      }
+
+      let promiseFn = Promise.resolve(xxx)
       if (timeout) {
         promiseFn = taskTimeout(promiseFn, timeout)
       }
@@ -47,13 +61,17 @@ const promisePoller = options => {
           }
         })
         .catch(error => {
+          if (error === 'CANCEL_TOKEN') {
+            reject(rejections)
+            polling = false
+          }
           rejections.push(error)
           if (retriesRemainCallback) {
             retriesRemainCallback(rejections, error)
           }
           if (--retriesRemain === 0 || !shouldContinue(error)) {
             reject(rejections)
-          } else {
+          } else if (polling) {
             delay(interval).then(poll)
           }
         })
@@ -68,15 +86,15 @@ let n = 0
 promisePoller({
   fn: () => {
     return new Promise((resolve, reject) => {
+      reject('CANCEL_TOKEN')
       setTimeout(() => {
-        console.log(1)
         n++
         resolve(n)
-      }, 600)
+      }, 200)
     })
   },
   interval: 1000,
-  masterTimeout: 8000,
+  masterTimeout: 6000,
   timeout: 500,
   retries: 4,
   shouldContinue: (error, promiseFn) => {
