@@ -17,8 +17,10 @@ const taskTimeout = (promise, timeout) => {
 }
 
 const promisePoller = options => {
-  const { fn, interval, masterTimeout, timeout, shouldContinue } = options
+  const { fn, interval, masterTimeout, timeout, shouldContinue, retries } = options
   let timeId
+  const rejections = []
+  let retriesRemain = retries
 
   return new Promise((resolve, reject) => {
     if (masterTimeout) {
@@ -45,7 +47,12 @@ const promisePoller = options => {
           }
         })
         .catch(error => {
-          console.log(error)
+          rejections.push(error)
+          if (--retriesRemain === 0 || !shouldContinue(error)) {
+            reject(rejections)
+          } else {
+            delay(interval).then(poll)
+          }
         })
     }
 
@@ -62,12 +69,13 @@ promisePoller({
         console.log(1)
         n++
         resolve(n)
-      }, 300)
+      }, 600)
     })
   },
   interval: 1000,
-  masterTimeout: 5000,
+  masterTimeout: 8000,
   timeout: 500,
+  retries: 4,
   shouldContinue: (error, promiseFn) => {
     if (error || n === 8) {
       return false
