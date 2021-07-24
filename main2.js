@@ -17,7 +17,7 @@ const taskTimeout = (promise, timeout) => {
 }
 
 const promisePoller = options => {
-  const { fn, interval, masterTimeout, timeout, shouldContinue, retries } = options
+  const { fn, interval, masterTimeout, timeout, shouldContinue, retries, retriesRemainCallback } = options
   let timeId
   const rejections = []
   let retriesRemain = retries
@@ -48,6 +48,9 @@ const promisePoller = options => {
         })
         .catch(error => {
           rejections.push(error)
+          if (retriesRemainCallback) {
+            retriesRemainCallback(rejections, error)
+          }
           if (--retriesRemain === 0 || !shouldContinue(error)) {
             reject(rejections)
           } else {
@@ -82,6 +85,9 @@ promisePoller({
     } else {
       return true
     }
+  },
+  retriesRemainCallback: (rejections, error) => {
+    console.log(rejections, error)
   }
 }).then(
   data => {
